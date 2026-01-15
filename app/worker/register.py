@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
+import re
 import threading
 
 from selenium.webdriver.common.by import By
@@ -89,6 +90,7 @@ def fetch_verification_code(email: str, timeout: int = 60) -> str:
     settings = get_settings()
     print_log("等待邮件验证码...")
     start_time = time.time()
+    code_pattern = re.compile(r"\b(\d{6})\b")
 
     while time.time() - start_time < timeout:
         try:
@@ -112,6 +114,13 @@ def fetch_verification_code(email: str, timeout: int = 60) -> str:
                         if len(code) == 6:
                             print_log(f"验证码 → {code}", "OK")
                             return code
+                    # 兜底: 从正文文本提取 6 位验证码
+                    text_content = soup.get_text(" ", strip=True)
+                    match = code_pattern.search(text_content) or code_pattern.search(html_content)
+                    if match:
+                        code = match.group(1)
+                        print_log(f"验证码 → {code}", "OK")
+                        return code
         except Exception:
             pass
 
