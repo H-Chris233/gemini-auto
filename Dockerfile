@@ -7,7 +7,7 @@ WORKDIR /build
 
 # 复制前端依赖
 COPY frontend/package*.json ./
-RUN npm ci --prefer-offline
+RUN npm install
 
 # 复制前端源码
 COPY frontend/ ./
