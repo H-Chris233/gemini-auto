@@ -49,3 +49,9 @@ class AccountStats(BaseModel):
     active: int
     disabled: int
     expired: int
+
+
+class AccountsResponse(BaseModel):
+    """账号列表响应"""
+    total: int
+    accounts: List[Account]

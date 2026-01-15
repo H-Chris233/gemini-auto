@@ -2,12 +2,14 @@
 FastAPI 主应用入口
 """
 
-import asyncio
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi import HTTPException
 
 from app.api import health_router, tasks_router, accounts_router, config_router
 from app.config import get_settings
@@ -60,6 +62,19 @@ app.include_router(health_router)
 app.include_router(tasks_router)
 app.include_router(accounts_router)
 app.include_router(config_router)
+
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+ASSETS_DIR = STATIC_DIR / "assets"
+if ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    index_file = STATIC_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    raise HTTPException(status_code=404, detail="index.html not found")
 
 # API 前缀兼容 (/api/*)
 app.include_router(health_router, prefix="/api")

@@ -24,6 +24,13 @@ class TaskCreate(BaseModel):
         default=None,
         description="上传模式: replace (覆盖) 或 merge (合并)，为空则使用默认配置",
     )
+    schedule_enabled: bool = Field(default=False, description="是否启用定时任务")
+    interval_hours: Optional[float] = Field(
+        default=None,
+        ge=0.1,
+        description="定时任务间隔小时数",
+    )
+    run_now: bool = Field(default=True, description="定时任务是否立即执行一次")
 
 
 class TaskResponse(BaseModel):
@@ -31,6 +38,10 @@ class TaskResponse(BaseModel):
     id: str
     status: TaskStatus
     count: int
+    upload_mode: Optional[str] = None
+    schedule_enabled: bool = False
+    interval_hours: Optional[float] = None
+    next_run_at: Optional[datetime] = None
     success_count: int = 0
     fail_count: int = 0
     total_time: float = 0.0

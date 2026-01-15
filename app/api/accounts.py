@@ -9,8 +9,9 @@ from pathlib import Path
 from typing import List
 from fastapi import APIRouter, HTTPException
 
-from app.schemas.account import Account, AccountStats, AccountUpload
+from app.schemas.account import Account, AccountStats, AccountUpload, AccountsResponse
 from app.config import get_settings
+from app.utils.uploader import fetch_remote_accounts
 
 
 router = APIRouter(prefix="/accounts", tags=["账号管理"])
@@ -115,6 +116,20 @@ async def upload_accounts(payload: AccountUpload):
         "count": len(merged_accounts),
         "new_count": new_count,
     }
+
+
+@router.get("/remote", response_model=AccountsResponse)
+async def get_remote_accounts():
+    """
+    获取远程账号列表
+    """
+    result = fetch_remote_accounts()
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message", "远程账号获取失败"))
+
+    accounts = [Account(**acc) for acc in result.get("accounts", [])]
+    total = result.get("total", len(accounts))
+    return {"accounts": accounts, "total": total}
 
 
 @router.delete("/{email}")

@@ -212,6 +212,29 @@ class AccountUploader:
             self._log(f"上传异常: {e}", "ERROR")
             return {"success": False, "message": str(e)}
 
+    def fetch_accounts(self) -> dict:
+        """获取远程账号列表"""
+        if not self.api_host:
+            return {"success": False, "message": "未配置远程服务器地址"}
+
+        if not self.admin_key:
+            return {"success": False, "message": "未配置管理员密钥"}
+
+        if not self.login():
+            return {"success": False, "message": "远程服务器登录失败"}
+
+        view_url = f"{self.api_host}/accounts"
+        try:
+            response = self.session.get(view_url, timeout=30)
+            if response.status_code != 200:
+                return {"success": False, "message": f"远程查询失败: {response.status_code}"}
+            data = response.json()
+            accounts = data.get("accounts", [])
+            total = data.get("total", len(accounts))
+            return {"success": True, "accounts": accounts, "total": total}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
 
 def upload_to_remote(api_host: str = "", admin_key: str = "", mode: str = "merge") -> dict:
     """
@@ -236,3 +259,15 @@ def upload_to_remote(api_host: str = "", admin_key: str = "", mode: str = "merge
     accounts_file = settings.ACCOUNTS_FILE
 
     return uploader.upload(accounts_file, mode)
+
+
+def fetch_remote_accounts(api_host: str = "", admin_key: str = "") -> dict:
+    """
+    便捷函数：获取远程账号列表
+    """
+    settings = get_settings()
+    api_host = api_host or settings.UPLOAD_API_HOST
+    admin_key = admin_key or settings.UPLOAD_ADMIN_KEY
+
+    uploader = AccountUploader(api_host, admin_key)
+    return uploader.fetch_accounts()

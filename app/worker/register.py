@@ -3,15 +3,15 @@
 从原 gemini-auto.py 迁移的核心注册逻辑
 """
 
-import asyncio
 import json
 import time
 import random
 import requests
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
+import threading
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -22,10 +22,6 @@ from app.config import (
     get_settings, XPATH, LOGIN_URL, NAMES,
 )
 from app.worker.browser import BrowserManager
-
-
-# 邮箱队列
-email_queue = []
 
 
 def print_log(msg: str, level: str = "INFO"):
@@ -67,7 +63,7 @@ def create_temp_email() -> str:
     return None
 
 
-def prefetch_email():
+def prefetch_email(email_queue: list):
     """预创建邮箱并加入队列"""
     email = create_temp_email()
     if email:
@@ -75,10 +71,8 @@ def prefetch_email():
         print(f"[INFO] 预创建邮箱: {email}")
 
 
-def get_email() -> str:
+def get_email(email_queue: list) -> str:
     """获取邮箱地址"""
-    global email_queue
-
     if email_queue:
         email = email_queue.pop(0)
         print_log(f"邮箱就绪 → {email}", "OK")
@@ -216,7 +210,7 @@ def save_account_config(email: str, driver, timeout: int = 10) -> dict:
     return account_data
 
 
-async def register_single_account(browser: BrowserManager, email: str) -> dict:
+def register_single_account(browser: BrowserManager, email: str) -> dict:
     """注册单个账号"""
     start_time = time.time()
     driver = browser.get_driver()
@@ -362,11 +356,11 @@ async def register_single_account(browser: BrowserManager, email: str) -> dict:
         return {"email": email, "success": False, "elapsed": time.time() - start_time}
 
 
-async def run_batch_registration(
+def run_batch_registration(
     count: int,
     log_callback=None,
     progress_callback=None,
-    stop_event: asyncio.Event | None = None,
+    stop_event: threading.Event | None = None,
 ) -> dict:
     """
     批量注册账号
@@ -395,7 +389,8 @@ async def run_batch_registration(
     success_times = []
 
     # 预创建第一个邮箱
-    prefetch_email()
+    email_queue: list = []
+    prefetch_email(email_queue)
 
     stop_requested = False
 
@@ -418,14 +413,14 @@ async def run_batch_registration(
         print(f"{'=' * 60}\n")
 
         # 获取邮箱
-        email = get_email()
+        email = get_email(email_queue)
         if not email:
             fail_count += 1
             browser.increment_fails()
             continue
 
         # 执行注册
-        result = await register_single_account(browser, email)
+        result = register_single_account(browser, email)
 
         elapsed = result.get("elapsed", 0)
         total_time += elapsed
@@ -462,7 +457,7 @@ async def run_batch_registration(
                     log_callback("任务停止标志已触发，跳过浏览器重置并结束任务")
                 break
             browser.reset_for_new_account()
-            prefetch_email()
+            prefetch_email(email_queue)
 
     # 清理浏览器
     browser.close()
