@@ -61,10 +61,6 @@ class BrowserManager:
             options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--disable-blink-features=AutomationControlled")
 
-            # 反检测配置
-            options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            options.add_experimental_option("useAutomationExtension", False)
-
             # 创建浏览器
             self.driver = uc.Chrome(options=options, use_subprocess=True)
 
