@@ -364,7 +364,6 @@ async def register_single_account(browser: BrowserManager, email: str) -> dict:
 
 async def run_batch_registration(
     count: int,
-    upload_mode: str,
     log_callback=None,
     progress_callback=None,
 ) -> dict:
@@ -373,7 +372,6 @@ async def run_batch_registration(
 
     Args:
         count: 目标成功数量
-        upload_mode: 上传模式 (replace/merge)
         log_callback: 日志回调函数
         progress_callback: 进度回调函数
 

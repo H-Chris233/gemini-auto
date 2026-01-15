@@ -2,8 +2,7 @@
 账号相关数据模型
 """
 
-from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -22,22 +21,6 @@ class Account(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class AccountCreate(BaseModel):
-    """创建账号请求 (用于内部保存)"""
-    id: str
-    csesidx: str
-    config_id: str
-    secure_c_ses: str
-    host_c_oses: str
-    expires_at: Optional[str] = None
-
-
-class AccountUpload(BaseModel):
-    """上传账号配置请求"""
-    accounts: List[Account]
-    mode: str = Field(default="replace", description="上传模式: replace 或 merge")
 
 
 class AccountStats(BaseModel):

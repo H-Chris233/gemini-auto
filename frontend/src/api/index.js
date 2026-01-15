@@ -77,33 +77,6 @@ export const api = {
     const res = await fetch(`${API_BASE}/accounts/stats`)
     return res.json()
   },
-
-  // 上传账号
-  async uploadAccounts(accounts, mode = 'replace') {
-    const res = await fetch(`${API_BASE}/accounts/upload`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accounts, mode }),
-    })
-    if (!res.ok) throw new Error('上传失败')
-    return res.json()
-  },
-
-  // 删除账号
-  async deleteAccount(email) {
-    const res = await fetch(`${API_BASE}/accounts/${encodeURIComponent(email)}`, {
-      method: 'DELETE',
-    })
-    if (!res.ok) throw new Error('删除失败')
-    return res.json()
-  },
-
-  // 清空账号
-  async clearAccounts() {
-    const res = await fetch(`${API_BASE}/accounts/clear`, { method: 'POST' })
-    if (!res.ok) throw new Error('清空失败')
-    return res.json()
-  },
 }
 
 // 工具函数

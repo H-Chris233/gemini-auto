@@ -24,45 +24,6 @@
               />
             </div>
 
-            <div class="input-group">
-              <label>上传模式</label>
-              <select class="form-input" v-model="taskConfig.uploadMode" :disabled="currentTaskId !== null">
-                <option value="merge">合并上传 (保留远程账号)</option>
-                <option value="replace">覆盖上传 (替换远程账号)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- 已有账号上传 -->
-        <div class="config-section" v-if="!currentTaskId">
-          <h3 class="section-title">📤 上传已有账号</h3>
-          <div class="upload-area" @click="$refs.fileInput.click()">
-            <input
-              type="file"
-              ref="fileInput"
-              accept=".json,.txt"
-              style="display: none"
-              @change="handleFileChange"
-            />
-            <div class="upload-content" v-if="!uploadFile">
-              <span class="upload-icon">📁</span>
-              <p>点击或拖拽文件到这里</p>
-              <p class="upload-hint">支持 JSON 或 TXT 格式</p>
-            </div>
-            <div class="upload-content" v-else>
-              <span class="upload-icon">✅</span>
-              <p>{{ uploadFile.name }}</p>
-              <p class="upload-hint">{{ uploadAccounts.length }} 个账号待上传</p>
-            </div>
-          </div>
-          <div class="upload-actions" v-if="uploadFile">
-            <button class="btn btn-secondary" @click="clearUpload">
-              取消
-            </button>
-            <button class="btn btn-primary" @click="uploadAccounts" :disabled="uploading">
-              {{ uploading ? '上传中...' : '确认上传' }}
-            </button>
           </div>
         </div>
 
@@ -178,7 +139,6 @@ export default {
     // 任务配置
     const taskConfig = reactive({
       count: 5,
-      uploadMode: 'merge',
     })
 
     // 任务状态
@@ -197,12 +157,6 @@ export default {
     // 服务运行时间
     const uptime = ref(0)
     let uptimeInterval = null
-
-    // 文件上传相关
-    const fileInput = ref(null)
-    const uploadFile = ref(null)
-    const uploadAccounts = ref([])
-    const uploading = ref(false)
 
     // 是否就绪
     const isReady = computed(() => {
@@ -237,7 +191,7 @@ export default {
     const startTask = async () => {
       try {
         logs.value = []
-        const res = await api.createTask(taskConfig.count, taskConfig.uploadMode)
+        const res = await api.createTask(taskConfig.count)
         currentTaskId.value = res.id
         taskProgress.value = { success: 0, fail: 0, totalTime: 0, avgTime: 0 }
         logs.value.push({
@@ -329,82 +283,6 @@ export default {
       logs.value = []
     }
 
-    // 处理文件选择
-    const handleFileChange = (event) => {
-      const file = event.target.files[0]
-      if (!file) return
-
-      uploadFile.value = file
-
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        try {
-          let content = e.target.result
-
-          // 解析 JSON
-          let accounts = JSON.parse(content)
-
-          // 如果是字符串数组 (TXT 格式，每行一个邮箱)
-          if (typeof accounts[0] === 'string') {
-            accounts = accounts.map((email, index) => ({
-              id: email.trim(),
-              email: email.trim(),
-              expires_at: '未设置',
-              disabled: false,
-            }))
-          }
-
-          uploadAccounts.value = accounts
-          logs.value.push({
-            timestamp: new Date().toISOString(),
-            level: 'INFO',
-            message: `已加载 ${accounts.length} 个账号`,
-          })
-        } catch (err) {
-          logs.value.push({
-            timestamp: new Date().toISOString(),
-            level: 'ERROR',
-            message: `解析文件失败: ${err.message}`,
-          })
-          uploadFile.value = null
-        }
-      }
-      reader.readAsText(file)
-    }
-
-    // 清除上传
-    const clearUpload = () => {
-      uploadFile.value = null
-      uploadAccounts.value = []
-      if (fileInput.value) {
-        fileInput.value.value = ''
-      }
-    }
-
-    // 上传账号
-    const doUploadAccounts = async () => {
-      if (!uploadAccounts.value.length || uploading.value) return
-
-      uploading.value = true
-      try {
-        await api.uploadAccounts(uploadAccounts.value, taskConfig.uploadMode)
-        logs.value.push({
-          timestamp: new Date().toISOString(),
-          level: 'OK',
-          message: `成功上传 ${uploadAccounts.value.length} 个账号`,
-        })
-        clearUpload()
-      } catch (e) {
-        logs.value.push({
-          timestamp: new Date().toISOString(),
-          level: 'ERROR',
-          message: `上传失败: ${e.message}`,
-        })
-      } finally {
-        uploading.value = false
-      }
-    }
-
     onMounted(() => {
       loadConfig()
 
@@ -437,13 +315,6 @@ export default {
       startTask,
       stopTask,
       clearLogs,
-      fileInput,
-      uploadFile,
-      uploadAccounts,
-      uploading,
-      handleFileChange,
-      clearUpload,
-      uploadAccounts: doUploadAccounts,
     }
   }
 }
@@ -486,49 +357,6 @@ export default {
 .btn-lg {
   padding: 12px 32px;
   font-size: 16px;
-}
-
-/* 上传区域样式 */
-.upload-area {
-  border: 2px dashed rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 24px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.upload-area:hover {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
-}
-
-.upload-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.upload-icon {
-  font-size: 32px;
-}
-
-.upload-content p {
-  color: #e4e4e4;
-  margin: 0;
-}
-
-.upload-hint {
-  font-size: 12px;
-  color: #666 !important;
-}
-
-.upload-actions {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 16px;
 }
 
 .task-status {

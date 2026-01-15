@@ -54,7 +54,6 @@ async def create_task(task: TaskCreate, background_tasks: BackgroundTasks):
         "fail_count": 0,
         "total_time": 0.0,
         "avg_time": 0.0,
-        "upload_mode": task.upload_mode,
         "created_at": datetime.now(),
         "updated_at": datetime.now(),
     }
@@ -63,7 +62,7 @@ async def create_task(task: TaskCreate, background_tasks: BackgroundTasks):
     log_task_event(task_id, "INFO", f"任务已创建，目标: {task.count} 个账号")
 
     # 在后台启动注册任务
-    background_tasks.add_task(run_registration_task, task_id, task.count, task.upload_mode)
+    background_tasks.add_task(run_registration_task, task_id, task.count)
 
     return tasks[task_id]
 
@@ -127,7 +126,7 @@ async def get_task_logs(task_id: str):
     return EventSourceResponse(log_generator())
 
 
-async def run_registration_task(task_id: str, count: int, upload_mode: str):
+async def run_registration_task(task_id: str, count: int):
     """
     后台执行注册任务
     从 worker 模块调用注册逻辑
@@ -153,7 +152,6 @@ async def run_registration_task(task_id: str, count: int, upload_mode: str):
 
         result = await run_batch_registration(
             count=count,
-            upload_mode=upload_mode,
             log_callback=lambda msg: log_task_event(task_id, "INFO", msg),
             progress_callback=progress_callback,
         )

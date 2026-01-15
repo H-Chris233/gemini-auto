@@ -19,9 +19,6 @@
           <button class="btn btn-secondary" @click="refreshAccounts">
             刷新
           </button>
-          <button class="btn btn-danger" @click="handleClear">
-            清空
-          </button>
         </div>
       </div>
 
@@ -34,7 +31,6 @@
               <th>账号 ID</th>
               <th>过期时间</th>
               <th>状态</th>
-              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -46,11 +42,6 @@
                 <span class="status-badge" :class="getStatusClass(account)">
                   {{ getStatusText(account) }}
                 </span>
-              </td>
-              <td>
-                <button class="btn-delete" @click="handleDelete(account.id)" title="删除">
-                  🗑️
-                </button>
               </td>
             </tr>
           </tbody>
@@ -143,30 +134,6 @@ export default {
       loadAccounts()
     }
 
-    // 删除账号
-    const handleDelete = async (email) => {
-      if (!confirm(`确定要删除账号 ${email} 吗？`)) return
-
-      try {
-        await api.deleteAccount(email)
-        await loadAccounts()
-      } catch (e) {
-        alert(`删除失败: ${e.message}`)
-      }
-    }
-
-    // 清空账号
-    const handleClear = async () => {
-      if (!confirm('确定要清空所有账号吗？此操作不可恢复！')) return
-
-      try {
-        await api.clearAccounts()
-        await loadAccounts()
-      } catch (e) {
-        alert(`清空失败: ${e.message}`)
-      }
-    }
-
     onMounted(() => {
       loadAccounts()
     })
@@ -178,8 +145,6 @@ export default {
       getStatusClass,
       getStatusText,
       refreshAccounts,
-      handleDelete,
-      handleClear,
     }
   }
 }
