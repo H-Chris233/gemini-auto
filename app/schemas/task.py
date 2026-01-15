@@ -20,6 +20,10 @@ class TaskStatus(str, Enum):
 class TaskCreate(BaseModel):
     """创建任务请求模型"""
     count: int = Field(default=5, ge=1, le=100, description="要注册的账号数量")
+    upload_mode: Optional[str] = Field(
+        default=None,
+        description="上传模式: replace (覆盖) 或 merge (合并)，为空则使用默认配置",
+    )
 
 
 class TaskResponse(BaseModel):

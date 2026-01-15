@@ -46,10 +46,12 @@ async def create_task(task: TaskCreate, background_tasks: BackgroundTasks):
     """
     task_id = str(uuid.uuid4())[:8]
 
+    upload_mode = task.upload_mode
     tasks[task_id] = {
         "id": task_id,
         "status": TaskStatus.RUNNING,
         "count": task.count,
+        "upload_mode": upload_mode,
         "success_count": 0,
         "fail_count": 0,
         "total_time": 0.0,
@@ -62,7 +64,7 @@ async def create_task(task: TaskCreate, background_tasks: BackgroundTasks):
     log_task_event(task_id, "INFO", f"任务已创建，目标: {task.count} 个账号")
 
     # 在后台启动注册任务
-    background_tasks.add_task(run_registration_task, task_id, task.count)
+    background_tasks.add_task(run_registration_task, task_id, task.count, upload_mode)
 
     return tasks[task_id]
 
@@ -126,7 +128,7 @@ async def get_task_logs(task_id: str):
     return EventSourceResponse(log_generator())
 
 
-async def run_registration_task(task_id: str, count: int):
+async def run_registration_task(task_id: str, count: int, upload_mode: Optional[str] = None):
     """
     后台执行注册任务
     从 worker 模块调用注册逻辑
@@ -180,7 +182,7 @@ async def run_registration_task(task_id: str, count: int):
                 upload_result = upload_to_remote(
                     api_host=settings.UPLOAD_API_HOST,
                     admin_key=settings.UPLOAD_ADMIN_KEY,
-                    mode=settings.UPLOAD_MODE,
+                    mode=upload_mode or settings.UPLOAD_MODE,
                 )
                 if upload_result.get("success"):
                     log_task_event(task_id, "OK", f"已上传到远程服务器: {upload_result.get('message', '')}")
