@@ -41,7 +41,7 @@ docker run -d \
   --name gemini-auto \
   -p 8080:8080 \
   -e GEMINI_API_HOST="https://your-api-server.com" \
-  -e GEMINI_ADMIN_KEY="your-admin-key-here \
+  -e GEMINI_ADMIN_KEY="your-admin-key-here" \
   -e GEMINI_MAIL_API="https://mail.chatgpt.org.uk" \
   -e GEMINI_MAIL_KEY="gpt-test" \
   -e GEMINI_HEADLESS_MODE="true" \
