@@ -14,10 +14,18 @@ echo "[Gemini Auto] Headless 模式: $GEMINI_HEADLESS_MODE"
 # 确保目录存在
 mkdir -p /app/static /app/run /app/log
 
+# 渲染 Nginx 配置
+NGINX_TEMPLATE="/etc/nginx/conf.d/default.conf.template"
+NGINX_CONF="/etc/nginx/conf.d/default.conf"
+if [ -f "$NGINX_TEMPLATE" ]; then
+  echo "[Gemini Auto] 渲染 Nginx 监听端口..."
+  sed "s/{{GEMINI_LISTEN_PORT}}/${GEMINI_LISTEN_PORT}/g" "$NGINX_TEMPLATE" > "$NGINX_CONF"
+fi
+
 # 启动 FastAPI (后台运行)
 echo "[Gemini Auto] 启动 FastAPI 服务..."
 cd /app
-uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+uvicorn app.main:app --host 0.0.0.0 --port "$GEMINI_LISTEN_PORT" &
 UVICORN_PID=$!
 
 # 等待 FastAPI 启动
