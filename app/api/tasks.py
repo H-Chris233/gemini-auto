@@ -25,6 +25,13 @@ tasks: Dict[str, Dict[str, Any]] = {}
 task_logs: Dict[str, list] = {}
 
 
+def serialize_task(task_data: Dict[str, Any]) -> Dict[str, Any]:
+    """移除不可序列化字段"""
+    safe_data = dict(task_data)
+    safe_data.pop("stop_event", None)
+    return safe_data
+
+
 def log_task_event(task_id: str, level: str, message: str):
     """记录任务日志"""
     if task_id not in task_logs:
@@ -93,9 +100,9 @@ async def create_task(task: TaskCreate, background_tasks: BackgroundTasks):
             run_now,
         )
     else:
-        background_tasks.add_task(run_registration_task, task_id, task.count, upload_mode)
+    background_tasks.add_task(run_registration_task, task_id, task.count, upload_mode)
 
-    return tasks[task_id]
+    return serialize_task(tasks[task_id])
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
@@ -106,7 +113,7 @@ async def get_task(task_id: str):
     if task_id not in tasks:
         raise HTTPException(status_code=404, detail="任务不存在")
 
-    return tasks[task_id]
+    return serialize_task(tasks[task_id])
 
 
 @router.delete("/{task_id}")
@@ -125,7 +132,7 @@ async def stop_task(task_id: str):
     tasks[task_id]["updated_at"] = datetime.now()
     log_task_event(task_id, "WARN", "任务已手动停止")
 
-    return {"message": "任务已停止", "task": tasks[task_id]}
+    return {"message": "任务已停止", "task": serialize_task(tasks[task_id])}
 
 
 @router.get("/{task_id}/logs")
