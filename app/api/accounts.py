@@ -1,15 +1,15 @@
 """
 账号管理路由
-仅提供账号查看功能，账号由注册任务自动生成
+提供账号查看/上传/删除/清空等功能
 """
 
 import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import List
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
-from app.schemas.account import Account, AccountStats
+from app.schemas.account import Account, AccountStats, AccountUpload
 from app.config import get_settings
 
 
@@ -27,6 +27,15 @@ def load_accounts() -> List[dict]:
             return json.load(f)
     except Exception:
         return []
+
+
+def save_accounts(accounts: List[dict]) -> None:
+    """保存账号到本地文件"""
+    settings = get_settings()
+    accounts_file = settings.ACCOUNTS_FILE or "accounts.json"
+    Path(accounts_file).parent.mkdir(parents=True, exist_ok=True)
+    with open(accounts_file, 'w', encoding='utf-8') as f:
+        json.dump(accounts, f, ensure_ascii=False, indent=2)
 
 
 @router.get("/", response_model=List[Account])
@@ -73,3 +82,60 @@ async def get_account_stats():
         disabled=disabled_count,
         expired=expired,
     )
+
+
+@router.post("/upload")
+async def upload_accounts(payload: AccountUpload):
+    """
+    上传账号配置 (replace/merge)
+    """
+    mode = payload.mode or "replace"
+    incoming_accounts = [acc.model_dump() for acc in payload.accounts]
+
+    if mode not in {"replace", "merge"}:
+        raise HTTPException(status_code=400, detail="不支持的上传模式")
+
+    if mode == "replace":
+        save_accounts(incoming_accounts)
+        return {"message": "账号配置已覆盖", "count": len(incoming_accounts)}
+
+    existing_accounts = load_accounts()
+    existing_ids = {acc.get("id") for acc in existing_accounts}
+    merged_accounts = list(existing_accounts)
+    new_count = 0
+
+    for account in incoming_accounts:
+        if account.get("id") not in existing_ids:
+            merged_accounts.append(account)
+            new_count += 1
+
+    save_accounts(merged_accounts)
+    return {
+        "message": "账号配置已合并",
+        "count": len(merged_accounts),
+        "new_count": new_count,
+    }
+
+
+@router.delete("/{email}")
+async def delete_account(email: str):
+    """
+    删除指定账号
+    """
+    accounts = load_accounts()
+    remaining_accounts = [acc for acc in accounts if acc.get("id") != email]
+
+    if len(remaining_accounts) == len(accounts):
+        raise HTTPException(status_code=404, detail="账号不存在")
+
+    save_accounts(remaining_accounts)
+    return {"message": "账号已删除", "count": len(remaining_accounts)}
+
+
+@router.post("/clear")
+async def clear_accounts():
+    """
+    清空所有账号
+    """
+    save_accounts([])
+    return {"message": "账号已清空", "count": 0}
