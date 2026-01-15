@@ -13,8 +13,13 @@ from datetime import datetime, timezone, timedelta
 from urllib.parse import urlparse, parse_qs
 from bs4 import BeautifulSoup
 
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 from app.config import (
-    get_settings, XPATH, LOGIN_URL, NAMES, MAIL_API, MAIL_KEY,
+    get_settings, XPATH, LOGIN_URL, NAMES,
 )
 from app.worker.browser import BrowserManager
 
@@ -46,10 +51,11 @@ def log_error(email: str, error_msg: str, error_file: str = "errors.log"):
 
 def create_temp_email() -> str:
     """创建临时邮箱地址"""
+    settings = get_settings()
     try:
         response = requests.get(
-            f"{MAIL_API}/api/generate-email",
-            headers={"X-API-Key": MAIL_KEY},
+            f"{settings.MAIL_API}/api/generate-email",
+            headers={"X-API-Key": settings.MAIL_KEY},
             timeout=30
         )
         if response.status_code == 200:
@@ -86,15 +92,16 @@ def get_email() -> str:
 
 def fetch_verification_code(email: str, timeout: int = 60) -> str:
     """获取邮箱验证码"""
+    settings = get_settings()
     print_log("等待邮件验证码...")
     start_time = time.time()
 
     while time.time() - start_time < timeout:
         try:
             response = requests.get(
-                f"{MAIL_API}/api/emails",
+                f"{settings.MAIL_API}/api/emails",
                 params={"email": email},
-                headers={"X-API-Key": MAIL_KEY},
+                headers={"X-API-Key": settings.MAIL_KEY},
                 timeout=10
             )
 

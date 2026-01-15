@@ -111,33 +111,5 @@ export default {
   padding: 40px;
 }
 
-.log-line {
-  margin-bottom: 4px;
-  line-height: 1.6;
-}
-
-.log-line .time {
-  color: #666;
-  margin-right: 8px;
-}
-
-.log-line .level {
-  display: inline-block;
-  width: 50px;
-  margin-right: 8px;
-  font-weight: 500;
-}
-
-.log-line .level.INFO { color: #2196f3; }
-.log-line .level.WARN { color: #ffc107; }
-.log-line .level.ERROR { color: #f44336; }
-.log-line .level.OK { color: #4caf50; }
-.log-line .level.→ { color: #2196f3; }
-.log-line .level.⚠ { color: #ffc107; }
-.log-line .level.✗ { color: #f44336; }
-.log-line .level.✓ { color: #4caf50; }
-
-.log-line .message {
-  color: #e4e4e4;
-}
+/* 日志行样式由全局 style.css 提供，此处只保留容器相关样式 */
 </style>

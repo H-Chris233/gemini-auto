@@ -23,13 +23,13 @@ async def get_config():
     """
     获取当前配置（敏感信息不返回）
     """
-    from app.config import get_settings, MAIL_API
+    from app.config import get_settings
     from app.main import version
 
     settings = get_settings()
 
     return {
-        "mail_api": MAIL_API,
+        "mail_api": settings.MAIL_API,
         "mail_key_set": bool(settings.MAIL_KEY and settings.MAIL_KEY != "gpt-test"),
         "headless_mode": settings.HEADLESS_MODE,
         "concurrent_tasks": settings.CONCURRENT_TASKS,

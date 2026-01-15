@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_prefix = "GEMINI_"
-        case_sensitive = False
+        case_sensitive = True  # 保持大小写敏感，确保环境变量精确匹配
 
 
 @lru_cache()
