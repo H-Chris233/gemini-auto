@@ -56,10 +56,10 @@ app.add_middleware(
 
 
 # 注册路由
-app.include_router(health_router)
-app.include_router(tasks_router)
-app.include_router(accounts_router)
-app.include_router(config_router)
+app.include_router(health_router, prefix="/api")
+app.include_router(tasks_router, prefix="/api")
+app.include_router(accounts_router, prefix="/api")
+app.include_router(config_router, prefix="/api")
 
 
 def create_app() -> FastAPI:
