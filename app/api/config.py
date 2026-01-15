@@ -33,7 +33,7 @@ async def get_config():
 
     return {
         "mail_api": settings.MAIL_API,
-        "mail_key_set": bool(settings.MAIL_KEY and settings.MAIL_KEY != "gpt-test"),
+        "mail_key_set": bool(settings.MAIL_KEY),
         "headless_mode": settings.HEADLESS_MODE,
         "concurrent_tasks": settings.CONCURRENT_TASKS,
         "version": version,

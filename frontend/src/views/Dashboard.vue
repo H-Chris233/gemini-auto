@@ -192,7 +192,7 @@ export default {
         const res = await api.getConfig()
         config.headlessMode = res.headless_mode
         config.mail_api = res.mail_api
-        config.mail_key_set = res.mail_key_set
+        config.mailKeySet = res.mail_key_set
         config.version = res.version
         config.uploadApiHostSet = res.upload_api_host_set
         config.uploadMode = res.upload_mode
