@@ -15,6 +15,9 @@ COPY frontend/ ./
 # 构建前端
 RUN npm run build
 
+# 将构建产物移动到 /build/static 供后续 COPY 使用
+RUN mv /app/static /build/static
+
 # ============================================
 # 运行阶段：生产环境容器
 # ============================================
