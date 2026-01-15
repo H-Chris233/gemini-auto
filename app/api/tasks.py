@@ -100,7 +100,7 @@ async def create_task(task: TaskCreate, background_tasks: BackgroundTasks):
             run_now,
         )
     else:
-    background_tasks.add_task(run_registration_task, task_id, task.count, upload_mode)
+        background_tasks.add_task(run_registration_task, task_id, task.count, upload_mode)
 
     return serialize_task(tasks[task_id])
 
