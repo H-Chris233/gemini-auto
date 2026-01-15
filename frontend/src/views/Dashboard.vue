@@ -23,7 +23,50 @@
                 :disabled="currentTaskId !== null"
               />
             </div>
-
+            <div class="input-group">
+              <label>上传模式</label>
+              <select
+                class="form-input"
+                v-model="taskConfig.uploadMode"
+                :disabled="currentTaskId !== null"
+              >
+                <option value="merge">合并</option>
+                <option value="replace">覆盖</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>定时任务</label>
+              <div class="checkbox-row">
+                <input
+                  type="checkbox"
+                  v-model="taskConfig.scheduleEnabled"
+                  :disabled="currentTaskId !== null"
+                />
+                <span>启用</span>
+              </div>
+            </div>
+            <div class="input-group" v-if="taskConfig.scheduleEnabled">
+              <label>间隔小时</label>
+              <input
+                type="number"
+                class="form-input"
+                v-model.number="taskConfig.intervalHours"
+                min="0.1"
+                step="0.1"
+                :disabled="currentTaskId !== null"
+              />
+            </div>
+            <div class="input-group" v-if="taskConfig.scheduleEnabled">
+              <label>立即执行</label>
+              <div class="checkbox-row">
+                <input
+                  type="checkbox"
+                  v-model="taskConfig.runNow"
+                  :disabled="currentTaskId !== null"
+                />
+                <span>是</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -72,8 +115,11 @@
 
       <!-- 任务状态 -->
       <div class="task-status" v-if="currentTaskId">
-        <span class="status-badge running">任务运行中</span>
+        <span class="status-badge running">
+          {{ currentTaskSchedule ? '定时任务运行中' : '任务运行中' }}
+        </span>
         <span class="task-id">ID: {{ currentTaskId }}</span>
+        <span class="task-id" v-if="currentTaskSchedule">间隔: {{ currentTaskInterval }}h</span>
       </div>
     </div>
 
@@ -149,10 +195,16 @@ export default {
     // 任务配置
     const taskConfig = reactive({
       count: 5,
+      uploadMode: 'merge',
+      scheduleEnabled: false,
+      intervalHours: 12,
+      runNow: true,
     })
 
     // 任务状态
     const currentTaskId = ref(null)
+    const currentTaskSchedule = ref(false)
+    const currentTaskInterval = ref(null)
     const taskProgress = ref(null)
     const logs = ref([])
     const logSource = ref(null)
@@ -172,7 +224,7 @@ export default {
 
     // 是否就绪
     const isReady = computed(() => {
-      return config.mailKeySet || config.headlessMode !== undefined
+      return config.mailKeySet
     })
 
     // 格式化运行时间
@@ -205,13 +257,25 @@ export default {
     const startTask = async () => {
       try {
         logs.value = []
-        const res = await api.createTask(taskConfig.count)
+        const res = await api.createTask(
+          taskConfig.count,
+          taskConfig.uploadMode,
+          {
+            scheduleEnabled: taskConfig.scheduleEnabled,
+            intervalHours: taskConfig.intervalHours,
+            runNow: taskConfig.runNow,
+          },
+        )
         currentTaskId.value = res.id
+        currentTaskSchedule.value = !!res.schedule_enabled
+        currentTaskInterval.value = res.interval_hours || null
         taskProgress.value = { success: 0, fail: 0, totalTime: 0, avgTime: 0 }
         logs.value.push({
           timestamp: new Date().toISOString(),
           level: 'INFO',
-          message: `任务已启动，目标注册 ${taskConfig.count} 个账号`,
+          message: taskConfig.scheduleEnabled
+            ? `定时任务已启动，间隔 ${taskConfig.intervalHours} 小时`
+            : `任务已启动，目标注册 ${taskConfig.count} 个账号`,
         })
 
         // 订阅日志
@@ -220,6 +284,8 @@ export default {
             // 任务结束
             if (data.status === 'completed' || data.status === 'failed') {
               currentTaskId.value = null
+              currentTaskSchedule.value = false
+              currentTaskInterval.value = null
               updateTaskStatus(res.id)
             }
           } else {
@@ -255,6 +321,8 @@ export default {
           message: '任务已手动停止',
         })
         currentTaskId.value = null
+        currentTaskSchedule.value = false
+        currentTaskInterval.value = null
       } catch (e) {
         logs.value.push({
           timestamp: new Date().toISOString(),
@@ -276,10 +344,14 @@ export default {
           totalTime: res.total_time,
           avgTime: res.avg_time,
         }
+        currentTaskSchedule.value = !!res.schedule_enabled
+        currentTaskInterval.value = res.interval_hours || null
 
         // 继续轮询直到任务结束
         if (res.status !== 'running') {
           currentTaskId.value = null
+          currentTaskSchedule.value = false
+          currentTaskInterval.value = null
           if (logSource.value) {
             logSource.value.close()
             logSource.value = null
@@ -319,6 +391,8 @@ export default {
     return {
       taskConfig,
       currentTaskId,
+      currentTaskSchedule,
+      currentTaskInterval,
       taskProgress,
       logs,
       config,
@@ -414,5 +488,14 @@ export default {
 
 .status-value.active {
   color: #4caf50;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  color: #aaa;
+  font-size: 14px;
 }
 </style>

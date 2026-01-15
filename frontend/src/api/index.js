@@ -1,5 +1,3 @@
-import axios from 'axios'
-
 const API_BASE = '/api'
 
 // API 客户端封装
@@ -19,11 +17,17 @@ export const api = {
   // ========== 任务相关 ==========
 
   // 创建任务
-  async createTask(count, uploadMode = 'merge') {
+  async createTask(count, uploadMode = 'merge', scheduleOptions = null) {
+    const payload = { count, upload_mode: uploadMode }
+    if (scheduleOptions) {
+      payload.schedule_enabled = scheduleOptions.scheduleEnabled
+      payload.interval_hours = scheduleOptions.intervalHours
+      payload.run_now = scheduleOptions.runNow
+    }
     const res = await fetch(`${API_BASE}/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ count, upload_mode: uploadMode }),
+      body: JSON.stringify(payload),
     })
     if (!res.ok) throw new Error('创建任务失败')
     return res.json()
@@ -75,6 +79,13 @@ export const api = {
   // 获取账号统计
   async getAccountStats() {
     const res = await fetch(`${API_BASE}/accounts/stats`)
+    return res.json()
+  },
+
+  // 获取远程账号列表
+  async getRemoteAccounts() {
+    const res = await fetch(`${API_BASE}/accounts/remote`)
+    if (!res.ok) throw new Error('远程账号获取失败')
     return res.json()
   },
 }
