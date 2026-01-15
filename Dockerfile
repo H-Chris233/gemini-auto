@@ -104,13 +104,15 @@ COPY --from=builder /build/static ./static/
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 
-# 创建 Nginx 所需的目录 (root 用户创建)
+# 创建目录并设置权限 (root 用户创建)
 RUN mkdir -p /var/lib/nginx/body /var/lib/nginx/proxy /var/lib/nginx/fastcgi /var/lib/nginx/uwsgi /var/lib/nginx/scgi && \
     chown -R appuser:appuser /var/lib/nginx && \
     chown -R appuser:appuser /var/log/nginx && \
     chown -R appuser:appuser /etc/nginx && \
     mkdir -p /var/run/nginx && \
-    chown appuser:appuser /var/run/nginx
+    chown appuser:appuser /var/run/nginx && \
+    mkdir -p /app/run /app/log && \
+    chown -R appuser:appuser /app
 
 # 切换到非 root 用户
 USER appuser
