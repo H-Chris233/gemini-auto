@@ -36,7 +36,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     libglib2.0-0 \
     libnss3 \
-    libgconf-2-4 \
     libfontconfig1 \
     libx11-6 \
     libx11-xcb1 \
@@ -51,8 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     libxss1 \
     libxtst6 \
-    libappindicator1 \
-    libasound2 \
+    libasound2t64 \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
     libcups2 \
