@@ -5,7 +5,7 @@ FastAPI 主应用入口
 import asyncio
 import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -56,12 +56,10 @@ app.add_middleware(
 
 
 # 注册路由
-api_router = APIRouter(prefix="/api")
-api_router.include_router(health_router)
-api_router.include_router(tasks_router)
-api_router.include_router(accounts_router)
-api_router.include_router(config_router)
-app.include_router(api_router)
+app.include_router(health_router)
+app.include_router(tasks_router)
+app.include_router(accounts_router)
+app.include_router(config_router)
 
 
 def create_app() -> FastAPI:

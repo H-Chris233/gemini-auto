@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE = '/api'
+const API_BASE = ''
 
 // API 客户端封装
 export const api = {
