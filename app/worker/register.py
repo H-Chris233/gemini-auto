@@ -113,13 +113,13 @@ def _try_resend_code(driver) -> bool:
     return False
 
 
-def fetch_verification_code(email: str, timeout: int = 60, driver=None) -> str:
+def fetch_verification_code(email: str, timeout: int = 120, driver=None) -> str:
     """获取邮箱验证码"""
     settings = get_settings()
     print_log("等待邮件验证码...")
     start_time = time.time()
     code_pattern = re.compile(r"\b([A-Z0-9]{6})\b")
-    resend_interval = min(60, max(15, timeout // 2))
+    resend_interval = 60
     last_resend_at = 0
 
     while time.time() - start_time < timeout:
