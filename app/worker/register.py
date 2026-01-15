@@ -104,6 +104,7 @@ def fetch_verification_code(email: str, timeout: int = 60) -> str:
             if response.status_code == 200:
                 data = response.json()
                 emails = data.get('data', {}).get('emails', [])
+                print_log(f"邮箱检查返回 {len(emails)} 封邮件")
                 if emails:
                     html_content = emails[0].get('html_content') or emails[0].get('content', '')
                     soup = BeautifulSoup(html_content, 'html.parser')
@@ -116,11 +117,14 @@ def fetch_verification_code(email: str, timeout: int = 60) -> str:
                             return code
                     # 兜底: 从正文文本提取 6 位验证码（可能是字母数字混合）
                     text_content = soup.get_text(" ", strip=True)
+                    print_log(f"邮件正文片段: {text_content[:120]}")
                     match = code_pattern.search(text_content) or code_pattern.search(html_content)
                     if match:
                         code = match.group(1).upper()
                         print_log(f"验证码 → {code}", "OK")
                         return code
+            else:
+                print_log(f"邮箱接口返回异常状态码: {response.status_code}", "WARN")
         except Exception:
             pass
 
