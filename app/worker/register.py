@@ -90,12 +90,23 @@ def _try_resend_code(driver) -> bool:
     if not driver:
         return False
     try:
-        for btn in driver.find_elements(By.TAG_NAME, "button"):
-            text = (btn.text or "").strip().lower()
+        candidates = []
+        candidates.extend(driver.find_elements(By.TAG_NAME, "button"))
+        candidates.extend(driver.find_elements(By.TAG_NAME, "a"))
+        candidates.extend(driver.find_elements(By.XPATH, "//*[@role='button']"))
+
+        for el in candidates:
+            text = (el.text or "").strip().lower()
             if not text:
                 continue
-            if "重新发送" in text or "再次发送" in text or "resend" in text or "send again" in text:
-                driver.execute_script("arguments[0].click();", btn)
+            if (
+                "重新发送" in text
+                or "重新发送验证码" in text
+                or "再次发送" in text
+                or "resend" in text
+                or "send again" in text
+            ):
+                driver.execute_script("arguments[0].click();", el)
                 return True
     except Exception:
         return False
@@ -108,7 +119,7 @@ def fetch_verification_code(email: str, timeout: int = 60, driver=None) -> str:
     print_log("等待邮件验证码...")
     start_time = time.time()
     code_pattern = re.compile(r"\b([A-Z0-9]{6})\b")
-    resend_interval = 60
+    resend_interval = min(60, max(15, timeout // 2))
     last_resend_at = 0
 
     while time.time() - start_time < timeout:
@@ -148,7 +159,7 @@ def fetch_verification_code(email: str, timeout: int = 60, driver=None) -> str:
             pass
 
         elapsed = int(time.time() - start_time)
-        if driver and elapsed - last_resend_at >= resend_interval:
+        if driver and elapsed >= resend_interval and (elapsed - last_resend_at >= resend_interval):
             if _try_resend_code(driver):
                 last_resend_at = elapsed
                 print_log("已点击重新发送验证码按钮", "INFO")
