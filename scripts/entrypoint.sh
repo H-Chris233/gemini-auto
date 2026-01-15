@@ -11,8 +11,8 @@ export GEMINI_CONCURRENT_TASKS=${GEMINI_CONCURRENT_TASKS:-1}
 echo "[Gemini Auto] 监听端口: $GEMINI_LISTEN_PORT"
 echo "[Gemini Auto] Headless 模式: $GEMINI_HEADLESS_MODE"
 
-# 确保静态资源目录存在
-mkdir -p /app/static
+# 确保目录存在
+mkdir -p /app/static /app/run /app/log
 
 # 启动 FastAPI (后台运行)
 echo "[Gemini Auto] 启动 FastAPI 服务..."
