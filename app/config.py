@@ -4,8 +4,7 @@
 """
 
 import os
-from typing import Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
@@ -37,9 +36,40 @@ class Settings(BaseSettings):
     ACCOUNTS_FILE: str = "accounts.json"
     ERROR_LOG_FILE: str = "errors.log"
 
-    class Config:
-        env_prefix = "GEMINI_"
-        case_sensitive = False  # 环境变量不区分大小写
+    model_config = SettingsConfigDict(
+        env_prefix="GEMINI_",
+        case_sensitive=False,  # 环境变量不区分大小写
+    )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls,
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        return (
+            init_settings,
+            cls._legacy_env_settings,
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+        )
+
+    @staticmethod
+    def _legacy_env_settings():
+        legacy_env_map = {
+            "UPLOAD_API_HOST": "GEMINI_API_HOST",
+            "UPLOAD_ADMIN_KEY": "GEMINI_ADMIN_KEY",
+        }
+        values = {}
+        for field_name, env_name in legacy_env_map.items():
+            env_value = os.getenv(env_name)
+            if env_value:
+                values[field_name] = env_value
+        return values
 
 
 @lru_cache()
