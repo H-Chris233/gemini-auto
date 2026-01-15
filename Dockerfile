@@ -62,6 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxshmfence1 \
     fonts-liberation \
     xdg-utils \
+    libvulkan1 \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 Chrome
