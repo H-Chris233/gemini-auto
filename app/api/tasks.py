@@ -2,8 +2,8 @@
 任务管理路由
 """
 
+import asyncio
 import uuid
-import time
 import json
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -58,6 +58,7 @@ async def create_task(task: TaskCreate, background_tasks: BackgroundTasks):
         "avg_time": 0.0,
         "created_at": datetime.now(),
         "updated_at": datetime.now(),
+        "stop_event": asyncio.Event(),
     }
 
     task_logs[task_id] = []
@@ -87,6 +88,10 @@ async def stop_task(task_id: str):
     """
     if task_id not in tasks:
         raise HTTPException(status_code=404, detail="任务不存在")
+
+    stop_event = tasks[task_id].get("stop_event")
+    if stop_event and not stop_event.is_set():
+        stop_event.set()
 
     tasks[task_id]["status"] = TaskStatus.STOPPED
     tasks[task_id]["updated_at"] = datetime.now()
@@ -124,7 +129,6 @@ async def get_task_logs(task_id: str):
 
             await asyncio.sleep(0.5)
 
-    import asyncio
     return EventSourceResponse(log_generator())
 
 
@@ -160,9 +164,22 @@ async def run_registration_task(task_id: str, count: int, upload_mode: Optional[
             count=count,
             log_callback=lambda msg: log_task_event(task_id, "INFO", msg),
             progress_callback=progress_callback,
+            stop_event=tasks[task_id].get("stop_event"),
         )
 
         # 更新最终状态
+        if result.get("stopped") or tasks[task_id].get("status") == TaskStatus.STOPPED:
+            tasks[task_id].update({
+                "status": TaskStatus.STOPPED,
+                "success_count": result.get("success", 0),
+                "fail_count": result.get("fail", 0),
+                "total_time": result.get("total_time", 0),
+                "avg_time": result.get("avg_time", 0),
+                "updated_at": datetime.now(),
+            })
+            log_task_event(task_id, "WARN", "任务已停止，结束注册流程")
+            return
+
         tasks[task_id].update({
             "status": TaskStatus.COMPLETED if result.get("success", 0) > 0 else TaskStatus.FAILED,
             "success_count": result.get("success", 0),

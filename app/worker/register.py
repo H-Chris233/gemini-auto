@@ -366,6 +366,7 @@ async def run_batch_registration(
     count: int,
     log_callback=None,
     progress_callback=None,
+    stop_event: asyncio.Event | None = None,
 ) -> dict:
     """
     批量注册账号
@@ -396,7 +397,14 @@ async def run_batch_registration(
     # 预创建第一个邮箱
     prefetch_email()
 
+    stop_requested = False
+
     while success_count < count:
+        if stop_event and stop_event.is_set():
+            stop_requested = True
+            if log_callback:
+                log_callback("任务停止标志已触发，准备退出注册循环")
+            break
         # 检查浏览器可用性
         if not browser.ensure_driver():
             if browser.consecutive_fails >= browser._MAX_CONSECUTIVE_FAILS:
@@ -448,6 +456,11 @@ async def run_batch_registration(
 
         # 准备下一个
         if success_count < count:
+            if stop_event and stop_event.is_set():
+                stop_requested = True
+                if log_callback:
+                    log_callback("任务停止标志已触发，跳过浏览器重置并结束任务")
+                break
             browser.reset_for_new_account()
             prefetch_email()
 
@@ -464,6 +477,7 @@ async def run_batch_registration(
         "total_time": total_time,
         "avg_time": avg_time,
         "is_ok": success_count > 0,
+        "stopped": stop_requested,
     }
 
     print(f"\n{'=' * 60}")
