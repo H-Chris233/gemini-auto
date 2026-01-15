@@ -1,0 +1,23 @@
+# FastAPI Web 框架
+fastapi==0.115.5
+uvicorn[standard]==0.32.0
+python-multipart==0.0.20
+
+# 浏览器自动化
+undetected-chromedriver==3.5.5
+selenium==4.27.1
+beautifulsoup4==4.12.3
+
+# HTTP 请求
+requests==2.32.3
+
+# 数据验证
+pydantic==2.10.1
+pydantic-settings==2.6.1
+
+# 异步支持
+aiofiles==24.1.0
+sse-starlette==2.1.3
+
+# 其他工具
+python-dateutil==2.9.0.post0
