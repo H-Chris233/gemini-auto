@@ -106,9 +106,19 @@
         </div>
         <div class="status-item">
           <span class="status-label">邮箱 API</span>
-          <span class="status-value" :class="{ active: config.mail_api }">
-            {{ config.mail_key_set ? '已配置' : '未配置' }}
+          <span class="status-value" :class="{ active: config.mailKeySet }">
+            {{ config.mailKeySet ? '已配置' : '未配置' }}
           </span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">自动上传</span>
+          <span class="status-value" :class="{ active: config.uploadApiHostSet }">
+            {{ config.uploadApiHostSet ? '已配置' : '未配置' }}
+          </span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">上传模式</span>
+          <span class="status-value">{{ config.uploadMode === 'merge' ? '合并' : '覆盖' }}</span>
         </div>
         <div class="status-item">
           <span class="status-label">版本</span>
@@ -152,6 +162,8 @@ export default {
       headlessMode: true,
       mailKeySet: false,
       version: '',
+      uploadApiHostSet: false,
+      uploadMode: 'merge',
     })
 
     // 服务运行时间
@@ -160,7 +172,7 @@ export default {
 
     // 是否就绪
     const isReady = computed(() => {
-      return config.mail_key_set || config.headless_mode !== undefined
+      return config.mailKeySet || config.headlessMode !== undefined
     })
 
     // 格式化运行时间
@@ -182,6 +194,8 @@ export default {
         config.mail_api = res.mail_api
         config.mail_key_set = res.mail_key_set
         config.version = res.version
+        config.uploadApiHostSet = res.upload_api_host_set
+        config.uploadMode = res.upload_mode
       } catch (e) {
         console.error('加载配置失败:', e)
       }

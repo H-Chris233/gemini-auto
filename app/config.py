@@ -15,9 +15,11 @@ class Settings(BaseSettings):
     使用 Pydantic Settings 进行环境变量管理
     """
 
-    # ========== 服务器 API 配置 ==========
-    API_HOST: str = "请输入你的服务器API地址"
-    ADMIN_KEY: str = "请输入你的管理员密钥"
+    # ========== 远程上传配置 ==========
+    # 任务完成后自动上传到远程服务器（配置了地址就上传）
+    UPLOAD_API_HOST: str = ""  # 远程服务器地址
+    UPLOAD_ADMIN_KEY: str = ""  # 远程管理员密钥
+    UPLOAD_MODE: str = "merge"  # 上传模式: replace (覆盖) 或 merge (合并)
 
     # ========== 临时邮箱 API 配置 ==========
     MAIL_API: str = "https://mail.chatgpt.org.uk"
@@ -37,7 +39,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_prefix = "GEMINI_"
-        case_sensitive = True  # 保持大小写敏感，确保环境变量精确匹配
+        case_sensitive = False  # 环境变量不区分大小写
 
 
 @lru_cache()

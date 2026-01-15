@@ -130,8 +130,12 @@ async def run_registration_task(task_id: str, count: int):
     """
     后台执行注册任务
     从 worker 模块调用注册逻辑
+    注册完成后自动上传到远程服务器（如已配置）
     """
     from app.worker.register import run_batch_registration
+    from app.config import get_settings
+
+    settings = get_settings()
 
     def progress_callback(progress_data: dict):
         """进度回调"""
@@ -167,6 +171,23 @@ async def run_registration_task(task_id: str, count: int):
         })
 
         log_task_event(task_id, "OK", f"任务完成! 成功: {result.get('success', 0)}, 失败: {result.get('fail', 0)}")
+
+        # 任务成功后上传到远程服务器
+        if result.get("success", 0) > 0 and settings.UPLOAD_API_HOST:
+            if settings.UPLOAD_ADMIN_KEY:
+                log_task_event(task_id, "INFO", f"正在上传到远程服务器...")
+                from app.utils.uploader import upload_to_remote
+                upload_result = upload_to_remote(
+                    api_host=settings.UPLOAD_API_HOST,
+                    admin_key=settings.UPLOAD_ADMIN_KEY,
+                    mode=settings.UPLOAD_MODE,
+                )
+                if upload_result.get("success"):
+                    log_task_event(task_id, "OK", f"已上传到远程服务器: {upload_result.get('message', '')}")
+                else:
+                    log_task_event(task_id, "ERROR", f"上传失败: {upload_result.get('message', '')}")
+            else:
+                log_task_event(task_id, "WARN", f"未配置远程管理员密钥，跳过上传")
 
     except Exception as e:
         tasks[task_id]["status"] = TaskStatus.FAILED

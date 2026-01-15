@@ -13,6 +13,9 @@ class ConfigResponse(BaseModel):
     headless_mode: bool
     concurrent_tasks: int
     version: str
+    # 上传配置
+    upload_api_host_set: bool  # 远程服务器地址是否已配置
+    upload_mode: str
 
 
 router = APIRouter(prefix="/config", tags=["配置管理"])
@@ -34,4 +37,7 @@ async def get_config():
         "headless_mode": settings.HEADLESS_MODE,
         "concurrent_tasks": settings.CONCURRENT_TASKS,
         "version": version,
+        # 上传配置
+        "upload_api_host_set": bool(settings.UPLOAD_API_HOST),
+        "upload_mode": settings.UPLOAD_MODE,
     }
