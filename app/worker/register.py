@@ -94,6 +94,14 @@ def _try_resend_code(driver) -> bool:
         candidates.extend(driver.find_elements(By.TAG_NAME, "button"))
         candidates.extend(driver.find_elements(By.TAG_NAME, "a"))
         candidates.extend(driver.find_elements(By.XPATH, "//*[@role='button']"))
+        candidates.extend(driver.find_elements(
+            By.XPATH,
+            "//*[contains(normalize-space(text()), '重新发送验证码') or "
+            "contains(normalize-space(text()), '重新发送') or "
+            "contains(normalize-space(text()), '再次发送') or "
+            "contains(translate(normalize-space(text()), 'RESEND', 'resend'), 'resend') or "
+            "contains(translate(normalize-space(text()), 'SEND AGAIN', 'send again'), 'send again')]"
+        ))
 
         for el in candidates:
             text = (el.text or "").strip().lower()
@@ -160,9 +168,12 @@ def fetch_verification_code(email: str, timeout: int = 120, driver=None) -> str:
 
         elapsed = int(time.time() - start_time)
         if driver and elapsed >= resend_interval and (elapsed - last_resend_at >= resend_interval):
+            print_log("尝试点击重新发送验证码按钮", "INFO")
             if _try_resend_code(driver):
                 last_resend_at = elapsed
                 print_log("已点击重新发送验证码按钮", "INFO")
+            else:
+                print_log("未找到重新发送验证码按钮", "WARN")
         print(f"  等待中... ({elapsed}s)", end='\r')
         time.sleep(2)
 
