@@ -108,7 +108,9 @@ COPY nginx/nginx.conf /etc/nginx/nginx.conf
 RUN mkdir -p /var/lib/nginx/body /var/lib/nginx/proxy /var/lib/nginx/fastcgi /var/lib/nginx/uwsgi /var/lib/nginx/scgi && \
     chown -R appuser:appuser /var/lib/nginx && \
     chown -R appuser:appuser /var/log/nginx && \
-    chown -R appuser:appuser /etc/nginx
+    chown -R appuser:appuser /etc/nginx && \
+    mkdir -p /var/run/nginx && \
+    chown appuser:appuser /var/run/nginx
 
 # 切换到非 root 用户
 USER appuser
