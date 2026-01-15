@@ -85,12 +85,31 @@ def get_email(email_queue: list) -> str:
     return email
 
 
-def fetch_verification_code(email: str, timeout: int = 60) -> str:
+def _try_resend_code(driver) -> bool:
+    """尝试点击重新发送验证码按钮"""
+    if not driver:
+        return False
+    try:
+        for btn in driver.find_elements(By.TAG_NAME, "button"):
+            text = (btn.text or "").strip().lower()
+            if not text:
+                continue
+            if "重新发送" in text or "再次发送" in text or "resend" in text or "send again" in text:
+                driver.execute_script("arguments[0].click();", btn)
+                return True
+    except Exception:
+        return False
+    return False
+
+
+def fetch_verification_code(email: str, timeout: int = 60, driver=None) -> str:
     """获取邮箱验证码"""
     settings = get_settings()
     print_log("等待邮件验证码...")
     start_time = time.time()
     code_pattern = re.compile(r"\b([A-Z0-9]{6})\b")
+    resend_interval = 60
+    last_resend_at = 0
 
     while time.time() - start_time < timeout:
         try:
@@ -129,6 +148,10 @@ def fetch_verification_code(email: str, timeout: int = 60) -> str:
             pass
 
         elapsed = int(time.time() - start_time)
+        if driver and elapsed - last_resend_at >= resend_interval:
+            if _try_resend_code(driver):
+                last_resend_at = elapsed
+                print_log("已点击重新发送验证码按钮", "INFO")
         print(f"  等待中... ({elapsed}s)", end='\r')
         time.sleep(2)
 
@@ -273,7 +296,7 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
 
         # 4. 获取验证码
         time.sleep(2)
-        code = fetch_verification_code(email)
+        code = fetch_verification_code(email, driver=driver)
         if not code:
             return {"email": email, "success": False, "elapsed": time.time() - start_time}
 
