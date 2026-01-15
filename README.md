@@ -25,7 +25,7 @@ npm run build
 cd ..
 
 # 3. 启动服务
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
+GEMINI_LISTEN_PORT=8080 python -m uvicorn app.main:app --host 0.0.0.0 --port ${GEMINI_LISTEN_PORT}
 ```
 
 访问 http://localhost:8080
@@ -65,7 +65,7 @@ docker stop gemini-auto && docker rm gemini-auto
 | `GEMINI_MAIL_KEY` | 否 | `gpt-test` | 邮箱 API 密钥 |
 | `GEMINI_HEADLESS_MODE` | 否 | `true` | 浏览器无头模式 |
 | `GEMINI_CONCURRENT_TASKS` | 否 | `1` | 并发任务数 |
-| `GEMINI_LISTEN_PORT` | 否 | `8080` | Web 服务端口 |
+| `GEMINI_LISTEN_PORT` | 否 | `8080` | Web 服务端口（同时渲染到 Nginx 监听端口） |
 
 ## API 接口
 
