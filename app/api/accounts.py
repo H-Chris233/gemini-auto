@@ -10,20 +10,20 @@ from typing import List
 from fastapi import APIRouter
 
 from app.schemas.account import Account, AccountStats
+from app.config import get_settings
 
 
 router = APIRouter(prefix="/accounts", tags=["账号管理"])
 
-# 账号文件路径
-ACCOUNTS_FILE = "accounts.json"
-
 
 def load_accounts() -> List[dict]:
     """加载本地账号文件"""
-    if not Path(ACCOUNTS_FILE).exists():
+    settings = get_settings()
+    accounts_file = settings.ACCOUNTS_FILE or "accounts.json"
+    if not Path(accounts_file).exists():
         return []
     try:
-        with open(ACCOUNTS_FILE, 'r', encoding='utf-8') as f:
+        with open(accounts_file, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception:
         return []
