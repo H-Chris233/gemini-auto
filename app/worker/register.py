@@ -105,14 +105,19 @@ def _try_resend_code(driver) -> bool:
 
         for el in candidates:
             text = (el.text or "").strip().lower()
-            if not text:
+            aria_label = (el.get_attribute("aria-label") or "").strip().lower()
+            title = (el.get_attribute("title") or "").strip().lower()
+            value = (el.get_attribute("value") or "").strip().lower()
+            text_content = (el.get_attribute("textContent") or "").strip().lower()
+            combined = " ".join([text, aria_label, title, value, text_content])
+            if not combined:
                 continue
             if (
-                "重新发送" in text
-                or "重新发送验证码" in text
-                or "再次发送" in text
-                or "resend" in text
-                or "send again" in text
+                "重新发送验证码" in combined
+                or "重新发送" in combined
+                or "再次发送" in combined
+                or "resend" in combined
+                or "send again" in combined
             ):
                 driver.execute_script("arguments[0].click();", el)
                 return True
