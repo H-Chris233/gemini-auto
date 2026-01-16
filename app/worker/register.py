@@ -165,6 +165,30 @@ def _log_page_snapshot(driver, tag: str) -> None:
         pass
 
 
+def _wait_for_verification_page(driver, timeout: int = 8) -> bool:
+    """等待验证码输入页出现"""
+    if not driver:
+        return False
+    start_time = time.time()
+    selectors = [
+        "input[name='pinInput']",
+        "span[data-index='0']",
+        "text()='重新发送验证码'",
+    ]
+    while time.time() - start_time < timeout:
+        try:
+            if driver.find_elements(By.CSS_SELECTOR, "input[name='pinInput']"):
+                return True
+            if driver.find_elements(By.CSS_SELECTOR, "span[data-index='0']"):
+                return True
+            if driver.find_elements(By.XPATH, "//*[contains(normalize-space(text()), '重新发送验证码')]"):
+                return True
+        except Exception:
+            pass
+        time.sleep(0.5)
+    return False
+
+
 def fetch_verification_code(email: str, timeout: int = 120, driver=None) -> str:
     """获取邮箱验证码"""
     settings = get_settings()
@@ -363,6 +387,14 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
         driver.execute_script("arguments[0].click();", btn)
         print_log("继续下一步", "OK")
         _log_page_snapshot(driver, "验证码页")
+        # 等待验证码输入页出现，未出现则重试点击
+        if not _wait_for_verification_page(driver, timeout=8):
+            print_log("未进入验证码页，尝试再次点击继续按钮", "WARN")
+            try:
+                driver.execute_script("arguments[0].click();", btn)
+            except Exception:
+                pass
+            _wait_for_verification_page(driver, timeout=8)
 
         # 4. 获取验证码
         time.sleep(2)
