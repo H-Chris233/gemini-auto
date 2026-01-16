@@ -204,12 +204,17 @@ def _log_page_snapshot(driver, tag: str) -> None:
               text: (b.innerText || b.textContent || "").trim().slice(0, 60),
               disabled: !!b.disabled
             }));
+            const alerts = Array.from(document.querySelectorAll("[role='alert'], [aria-live]"))
+              .map(el => (el.innerText || el.textContent || "").trim())
+              .filter(Boolean)
+              .slice(0, 6);
             return {
               title: document.title || "",
               url: location.href,
               bodyText: bodyText.slice(0, 800),
               inputs,
-              buttons
+              buttons,
+              alerts
             };
             """
         )
@@ -219,6 +224,8 @@ def _log_page_snapshot(driver, tag: str) -> None:
         print_log(f"[{tag}] 文本片段: {meta.get('bodyText', '')}".replace("\n", " "))
         print_log(f"[{tag}] 输入框: {meta.get('inputs', [])}")
         print_log(f"[{tag}] 按钮: {meta.get('buttons', [])}")
+        if meta.get("alerts"):
+            print_log(f"[{tag}] 提示: {meta.get('alerts', [])}", "WARN")
         print_log(f"[{tag}] 页面片段: {snippet}")
     except Exception:
         pass
@@ -238,6 +245,8 @@ def _has_verification_elements(driver) -> bool:
         )
         if any(keyword in page_text for keyword in ["验证码", "verification code", "Resend"]):
             return True
+        if driver.find_elements(By.CSS_SELECTOR, "#email-input"):
+            return False
     except Exception:
         return False
     return False
@@ -275,6 +284,8 @@ def _find_email_input(driver, wait):
         pass
     css_candidates = [
         "input[type='email']",
+        "input#email-input",
+        "input[name='loginHint']",
         "input[name='identifier']",
         "input#identifierId",
     ]
@@ -312,26 +323,50 @@ def _find_email_input(driver, wait):
 
 def _click_continue(driver, wait, inp) -> bool:
     """尝试点击继续按钮"""
+    def _force_click(element) -> bool:
+        try:
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        except Exception:
+            pass
+        try:
+            element.click()
+            return True
+        except Exception:
+            pass
+        try:
+            driver.execute_script("arguments[0].click();", element)
+            return True
+        except Exception:
+            pass
+        try:
+            driver.execute_script(
+                """
+                arguments[0].dispatchEvent(
+                  new MouseEvent('click', {bubbles: true, cancelable: true, view: window})
+                );
+                """,
+                element,
+            )
+            return True
+        except Exception:
+            return False
+
     try:
         btn = wait.until(EC.element_to_be_clickable((By.XPATH, XPATH["continue_btn"])))
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
-        try:
-            btn.click()
-        except Exception:
-            driver.execute_script("arguments[0].click();", btn)
-        return True
+        if _force_click(btn):
+            return True
     except Exception:
         pass
     try:
         results = driver.execute_script(
             """
-            const keywords = ["继续", "下一步", "next", "continue"];
+            const keywords = ["继续", "下一步", "next", "continue", "continue with email"];
             const elements = Array.from(document.querySelectorAll("button"));
             for (const el of elements) {
               const text = (el.innerText || el.textContent || "").trim().toLowerCase();
               if (!text) continue;
               if (keywords.some(k => text.includes(k))) {
-                el.click();
+                el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
                 return true;
               }
             }
