@@ -86,8 +86,8 @@ def get_email(email_queue: list) -> str:
     return email
 
 
-def _try_resend_code(driver) -> bool:
-    """尝试点击重新发送验证码按钮"""
+def _try_resend_code_in_context(driver) -> bool:
+    """当前上下文尝试点击重新发送验证码按钮"""
     if not driver:
         return False
     try:
@@ -125,19 +125,28 @@ def _try_resend_code(driver) -> bool:
             ):
                 driver.execute_script("arguments[0].click();", el)
                 return True
-        # 兜底: 全量扫描 DOM 文本并尝试点击
+        # 兜底: 全量扫描 DOM + ShadowRoot 文本并尝试点击
         results = driver.execute_script(
             """
             const keywords = arguments[0];
-            const elements = Array.from(document.querySelectorAll("button,a,[role='button']"));
             const matched = [];
-            for (const el of elements) {
-              const text = (el.innerText || el.textContent || "").trim().toLowerCase();
-              if (!text) continue;
-              if (keywords.some(k => text.includes(k))) {
-                matched.push(el);
+            const walk = (root) => {
+              const elements = Array.from(root.querySelectorAll("button,a,[role='button']"));
+              for (const el of elements) {
+                const text = (el.innerText || el.textContent || "").trim().toLowerCase();
+                if (!text) continue;
+                if (keywords.some(k => text.includes(k))) {
+                  matched.push(el);
+                }
               }
-            }
+              const all = Array.from(root.querySelectorAll("*"));
+              for (const el of all) {
+                if (el.shadowRoot) {
+                  walk(el.shadowRoot);
+                }
+              }
+            };
+            walk(document);
             if (matched.length > 0) {
               matched[0].click();
               return matched.length;
@@ -153,6 +162,27 @@ def _try_resend_code(driver) -> bool:
     return False
 
 
+def _try_resend_code(driver) -> bool:
+    """尝试点击重新发送验证码按钮"""
+    if not driver:
+        return False
+    if _try_resend_code_in_context(driver):
+        return True
+    try:
+        frames = driver.find_elements(By.TAG_NAME, "iframe")
+        for frame in frames:
+            try:
+                driver.switch_to.frame(frame)
+                if _try_resend_code_in_context(driver):
+                    driver.switch_to.default_content()
+                    return True
+            except Exception:
+                driver.switch_to.default_content()
+    except Exception:
+        driver.switch_to.default_content()
+    return False
+
+
 def _log_page_snapshot(driver, tag: str) -> None:
     """输出页面摘要日志，便于排查元素定位问题"""
     if not driver:
@@ -160,10 +190,57 @@ def _log_page_snapshot(driver, tag: str) -> None:
     try:
         page_source = driver.page_source or ""
         snippet = page_source[:2000].replace("\n", " ")
+        meta = driver.execute_script(
+            """
+            const bodyText = document.body ? document.body.innerText || "" : "";
+            const inputs = Array.from(document.querySelectorAll("input")).slice(0, 12).map(i => ({
+              type: i.type || "",
+              name: i.name || "",
+              id: i.id || "",
+              placeholder: i.placeholder || "",
+              value: i.value || ""
+            }));
+            const buttons = Array.from(document.querySelectorAll("button")).slice(0, 12).map(b => ({
+              text: (b.innerText || b.textContent || "").trim().slice(0, 60),
+              disabled: !!b.disabled
+            }));
+            return {
+              title: document.title || "",
+              url: location.href,
+              bodyText: bodyText.slice(0, 800),
+              inputs,
+              buttons
+            };
+            """
+        )
+        print_log(f"[{tag}] URL: {meta.get('url')}")
+        print_log(f"[{tag}] 标题: {meta.get('title')}")
         print_log(f"[{tag}] 页面长度: {len(page_source)}")
+        print_log(f"[{tag}] 文本片段: {meta.get('bodyText', '')}".replace("\n", " "))
+        print_log(f"[{tag}] 输入框: {meta.get('inputs', [])}")
+        print_log(f"[{tag}] 按钮: {meta.get('buttons', [])}")
         print_log(f"[{tag}] 页面片段: {snippet}")
     except Exception:
         pass
+
+
+def _has_verification_elements(driver) -> bool:
+    """检查验证码页关键元素"""
+    try:
+        if driver.find_elements(By.CSS_SELECTOR, "input[name='pinInput']"):
+            return True
+        if driver.find_elements(By.CSS_SELECTOR, "span[data-index='0']"):
+            return True
+        if driver.find_elements(By.XPATH, "//*[contains(normalize-space(text()), '重新发送验证码')]"):
+            return True
+        page_text = driver.execute_script(
+            "return document.body ? (document.body.innerText || '') : '';"
+        )
+        if any(keyword in page_text for keyword in ["验证码", "verification code", "Resend"]):
+            return True
+    except Exception:
+        return False
+    return False
 
 
 def _wait_for_verification_page(driver, timeout: int = 8) -> bool:
@@ -171,23 +248,105 @@ def _wait_for_verification_page(driver, timeout: int = 8) -> bool:
     if not driver:
         return False
     start_time = time.time()
-    selectors = [
-        "input[name='pinInput']",
-        "span[data-index='0']",
-        "text()='重新发送验证码'",
-    ]
     while time.time() - start_time < timeout:
+        if _has_verification_elements(driver):
+            return True
         try:
-            if driver.find_elements(By.CSS_SELECTOR, "input[name='pinInput']"):
-                return True
-            if driver.find_elements(By.CSS_SELECTOR, "span[data-index='0']"):
-                return True
-            if driver.find_elements(By.XPATH, "//*[contains(normalize-space(text()), '重新发送验证码')]"):
-                return True
+            frames = driver.find_elements(By.TAG_NAME, "iframe")
+            for frame in frames:
+                try:
+                    driver.switch_to.frame(frame)
+                    if _has_verification_elements(driver):
+                        driver.switch_to.default_content()
+                        return True
+                except Exception:
+                    driver.switch_to.default_content()
         except Exception:
-            pass
+            driver.switch_to.default_content()
         time.sleep(0.5)
     return False
+
+
+def _find_email_input(driver, wait):
+    """尽量定位邮箱输入框"""
+    try:
+        return wait.until(EC.element_to_be_clickable((By.XPATH, XPATH["email_input"])))
+    except Exception:
+        pass
+    css_candidates = [
+        "input[type='email']",
+        "input[name='identifier']",
+        "input#identifierId",
+    ]
+    for selector in css_candidates:
+        try:
+            element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
+            return element
+        except Exception:
+            continue
+    try:
+        element = driver.execute_script(
+            """
+            const selectors = ["input[type='email']", "input[name='identifier']", "input#identifierId"];
+            const findInRoot = (root) => {
+              for (const sel of selectors) {
+                const el = root.querySelector(sel);
+                if (el) return el;
+              }
+              const all = Array.from(root.querySelectorAll("*"));
+              for (const el of all) {
+                if (el.shadowRoot) {
+                  const found = findInRoot(el.shadowRoot);
+                  if (found) return found;
+                }
+              }
+              return null;
+            };
+            return findInRoot(document);
+            """
+        )
+        return element
+    except Exception:
+        return None
+
+
+def _click_continue(driver, wait, inp) -> bool:
+    """尝试点击继续按钮"""
+    try:
+        btn = wait.until(EC.element_to_be_clickable((By.XPATH, XPATH["continue_btn"])))
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
+        try:
+            btn.click()
+        except Exception:
+            driver.execute_script("arguments[0].click();", btn)
+        return True
+    except Exception:
+        pass
+    try:
+        results = driver.execute_script(
+            """
+            const keywords = ["继续", "下一步", "next", "continue"];
+            const elements = Array.from(document.querySelectorAll("button"));
+            for (const el of elements) {
+              const text = (el.innerText || el.textContent || "").trim().toLowerCase();
+              if (!text) continue;
+              if (keywords.some(k => text.includes(k))) {
+                el.click();
+                return true;
+              }
+            }
+            return false;
+            """
+        )
+        if results:
+            return True
+    except Exception:
+        pass
+    try:
+        driver.execute_script("arguments[0].form && arguments[0].form.submit();", inp)
+        return True
+    except Exception:
+        return False
 
 
 def fetch_verification_code(email: str, timeout: int = 120, driver=None) -> str:
@@ -360,10 +519,18 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
 
         # 2. 输入邮箱
         print_log("输入邮箱...")
-        inp = wait.until(EC.element_to_be_clickable((By.XPATH, XPATH["email_input"])))
+        inp = _find_email_input(driver, wait)
+        if not inp:
+            print_log("未找到邮箱输入框，无法继续", "ERROR")
+            _log_page_snapshot(driver, "登录页")
+            return {"email": email, "success": False, "elapsed": time.time() - start_time}
         inp.click()
         inp.clear()
         fast_type(inp, email)
+        try:
+            inp.send_keys(Keys.TAB)
+        except Exception:
+            pass
 
         # 验证输入
         time.sleep(0.3)
@@ -396,12 +563,10 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
 
         # 3. 点击继续
         time.sleep(0.5)
-        btn = wait.until(EC.element_to_be_clickable((By.XPATH, XPATH["continue_btn"])))
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
-        try:
-            btn.click()
-        except Exception:
-            driver.execute_script("arguments[0].click();", btn)
+        if not _click_continue(driver, wait, inp):
+            print_log("继续按钮未找到或不可点击", "ERROR")
+            _log_page_snapshot(driver, "登录页")
+            return {"email": email, "success": False, "elapsed": time.time() - start_time}
         print_log("继续下一步", "OK")
         _log_page_snapshot(driver, "验证码页")
         # 回车触发一次提交
@@ -414,16 +579,14 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
         if not _wait_for_verification_page(driver, timeout=8):
             print_log("未进入验证码页，尝试再次点击继续按钮", "WARN")
             try:
-                ActionChains(driver).move_to_element(btn).click().perform()
+                ActionChains(driver).move_to_element(inp).click().perform()
             except Exception:
                 pass
+            _click_continue(driver, wait, inp)
             if not _wait_for_verification_page(driver, timeout=8):
-                print_log("继续按钮未生效，尝试提交表单", "WARN")
-                try:
-                    driver.execute_script("arguments[0].form && arguments[0].form.submit();", inp)
-                except Exception:
-                    pass
-                _wait_for_verification_page(driver, timeout=8)
+                print_log("仍未进入验证码页，终止本次注册", "ERROR")
+                _log_page_snapshot(driver, "登录页")
+                return {"email": email, "success": False, "elapsed": time.time() - start_time}
 
         # 4. 获取验证码
         time.sleep(2)
