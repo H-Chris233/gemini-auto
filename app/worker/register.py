@@ -377,6 +377,9 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
                 arguments[0].dispatchEvent(event);
             """, inp)
             time.sleep(0.3)
+            actual_value = inp.get_attribute("value")
+            if actual_value != email:
+                print_log("邮箱仍未写入，可能被页面拦截", "WARN")
 
         print_log(f"邮箱 → {email}", "OK")
         _log_page_snapshot(driver, "邮箱已填")
@@ -387,6 +390,12 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
         driver.execute_script("arguments[0].click();", btn)
         print_log("继续下一步", "OK")
         _log_page_snapshot(driver, "验证码页")
+        # 回车触发一次提交
+        try:
+            inp.send_keys(Keys.ENTER)
+            print_log("已发送回车提交", "INFO")
+        except Exception:
+            pass
         # 等待验证码输入页出现，未出现则重试点击
         if not _wait_for_verification_page(driver, timeout=8):
             print_log("未进入验证码页，尝试再次点击继续按钮", "WARN")
