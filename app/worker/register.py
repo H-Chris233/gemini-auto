@@ -90,18 +90,21 @@ def _try_resend_code(driver) -> bool:
     if not driver:
         return False
     try:
+        keywords = ["重新发送验证码", "重新发送", "再次发送", "resend", "send again"]
         candidates = []
         candidates.extend(driver.find_elements(By.TAG_NAME, "button"))
         candidates.extend(driver.find_elements(By.TAG_NAME, "a"))
         candidates.extend(driver.find_elements(By.XPATH, "//*[@role='button']"))
-        candidates.extend(driver.find_elements(
-            By.XPATH,
-            "//*[contains(normalize-space(text()), '重新发送验证码') or "
-            "contains(normalize-space(text()), '重新发送') or "
-            "contains(normalize-space(text()), '再次发送') or "
-            "contains(translate(normalize-space(text()), 'RESEND', 'resend'), 'resend') or "
-            "contains(translate(normalize-space(text()), 'SEND AGAIN', 'send again'), 'send again')]"
-        ))
+        candidates.extend(
+            driver.find_elements(
+                By.XPATH,
+                "//*[contains(normalize-space(text()), '重新发送验证码') or "
+                "contains(normalize-space(text()), '重新发送') or "
+                "contains(normalize-space(text()), '再次发送') or "
+                "contains(translate(normalize-space(text()), 'RESEND', 'resend'), 'resend') or "
+                "contains(translate(normalize-space(text()), 'SEND AGAIN', 'send again'), 'send again')]"
+            )
+        )
 
         for el in candidates:
             text = (el.text or "").strip().lower()
@@ -121,9 +124,45 @@ def _try_resend_code(driver) -> bool:
             ):
                 driver.execute_script("arguments[0].click();", el)
                 return True
+        # 兜底: 全量扫描 DOM 文本并尝试点击
+        results = driver.execute_script(
+            """
+            const keywords = arguments[0];
+            const elements = Array.from(document.querySelectorAll("button,a,[role='button']"));
+            const matched = [];
+            for (const el of elements) {
+              const text = (el.innerText || el.textContent || "").trim().toLowerCase();
+              if (!text) continue;
+              if (keywords.some(k => text.includes(k))) {
+                matched.push(el);
+              }
+            }
+            if (matched.length > 0) {
+              matched[0].click();
+              return matched.length;
+            }
+            return 0;
+            """,
+            [k.lower() for k in keywords],
+        )
+        if results and results > 0:
+            return True
     except Exception:
         return False
     return False
+
+
+def _log_page_snapshot(driver, tag: str) -> None:
+    """输出页面摘要日志，便于排查元素定位问题"""
+    if not driver:
+        return
+    try:
+        page_source = driver.page_source or ""
+        snippet = page_source[:2000].replace("\n", " ")
+        print_log(f"[{tag}] 页面长度: {len(page_source)}")
+        print_log(f"[{tag}] 页面片段: {snippet}")
+    except Exception:
+        pass
 
 
 def fetch_verification_code(email: str, timeout: int = 120, driver=None) -> str:
@@ -174,6 +213,7 @@ def fetch_verification_code(email: str, timeout: int = 120, driver=None) -> str:
         elapsed = int(time.time() - start_time)
         if driver and elapsed >= resend_interval and (elapsed - last_resend_at >= resend_interval):
             print_log("尝试点击重新发送验证码按钮", "INFO")
+            _log_page_snapshot(driver, "验证码页")
             if _try_resend_code(driver):
                 last_resend_at = elapsed
                 print_log("已点击重新发送验证码按钮", "INFO")
@@ -287,6 +327,7 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
         # 1. 访问登录页
         driver.get(LOGIN_URL)
         time.sleep(2)
+        _log_page_snapshot(driver, "登录页")
 
         page_source = driver.page_source
         if len(page_source) < 500 or "about:blank" in driver.current_url:
@@ -314,12 +355,14 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
             time.sleep(0.3)
 
         print_log(f"邮箱 → {email}", "OK")
+        _log_page_snapshot(driver, "邮箱已填")
 
         # 3. 点击继续
         time.sleep(0.5)
         btn = wait.until(EC.element_to_be_clickable((By.XPATH, XPATH["continue_btn"])))
         driver.execute_script("arguments[0].click();", btn)
         print_log("继续下一步", "OK")
+        _log_page_snapshot(driver, "验证码页")
 
         # 4. 获取验证码
         time.sleep(2)
