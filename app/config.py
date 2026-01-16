@@ -89,7 +89,7 @@ XPATH = {
 }
 
 # Gemini 登录页面
-LOGIN_URL = "https://auth.business.gemini.google/login?continueUrl=https:%2F%2Fbusiness.gemini.google%2F&wiffid=CAoSJDIwNTlhYzBjLTVlMmMtNGUxZS1hY2JkLThmOGY2ZDE0ODM1Mg"
+LOGIN_URL = "https://auth.business.gemini.google/login?continueUrl=https://business.gemini.google/home/cid/ea35f5ea-6cdf-4a83-a370-e1e9c6dc6975?csesidx%3D355873723%26mods&wiffid=CAoSJDVlZGI3MjIwLTgzOTQtNGIyMy05NzUxLWRmOTdhNTEzNDMyNg"
 
 # 随机姓名池
 NAMES = [
