@@ -15,6 +15,7 @@ import re
 import threading
 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -376,10 +377,19 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
                 var event = new Event('input', { bubbles: true });
                 arguments[0].dispatchEvent(event);
             """, inp)
+            driver.execute_script("""
+                var changeEvent = new Event('change', { bubbles: true });
+                arguments[0].dispatchEvent(changeEvent);
+            """, inp)
+            driver.execute_script("""
+                var blurEvent = new Event('blur', { bubbles: true });
+                arguments[0].dispatchEvent(blurEvent);
+            """, inp)
             time.sleep(0.3)
             actual_value = inp.get_attribute("value")
             if actual_value != email:
                 print_log("邮箱仍未写入，可能被页面拦截", "WARN")
+                return {"email": email, "success": False, "elapsed": time.time() - start_time}
 
         print_log(f"邮箱 → {email}", "OK")
         _log_page_snapshot(driver, "邮箱已填")
@@ -387,7 +397,11 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
         # 3. 点击继续
         time.sleep(0.5)
         btn = wait.until(EC.element_to_be_clickable((By.XPATH, XPATH["continue_btn"])))
-        driver.execute_script("arguments[0].click();", btn)
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn)
+        try:
+            btn.click()
+        except Exception:
+            driver.execute_script("arguments[0].click();", btn)
         print_log("继续下一步", "OK")
         _log_page_snapshot(driver, "验证码页")
         # 回车触发一次提交
@@ -400,10 +414,16 @@ def register_single_account(browser: BrowserManager, email: str) -> dict:
         if not _wait_for_verification_page(driver, timeout=8):
             print_log("未进入验证码页，尝试再次点击继续按钮", "WARN")
             try:
-                driver.execute_script("arguments[0].click();", btn)
+                ActionChains(driver).move_to_element(btn).click().perform()
             except Exception:
                 pass
-            _wait_for_verification_page(driver, timeout=8)
+            if not _wait_for_verification_page(driver, timeout=8):
+                print_log("继续按钮未生效，尝试提交表单", "WARN")
+                try:
+                    driver.execute_script("arguments[0].form && arguments[0].form.submit();", inp)
+                except Exception:
+                    pass
+                _wait_for_verification_page(driver, timeout=8)
 
         # 4. 获取验证码
         time.sleep(2)
